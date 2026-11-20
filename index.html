@@ -18,6 +18,7 @@ button{cursor:pointer;border:0}
 .wrap{max-width:1100px;margin:auto;padding:20px}
 nav{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding:10px 0 17px}
 .brand{font:700 13px 'Space Grotesk';letter-spacing:2px;color:var(--gold)}
+.top-credit{color:var(--muted);font-size:9px;letter-spacing:1.5px;margin-top:6px;font-weight:600}
 .navbtn{background:transparent;color:var(--muted);padding:9px 12px;border:1px solid var(--line);border-radius:999px}
 .hero{text-align:center;padding:58px 12px 34px}
 .eyebrow{color:var(--pink);font-weight:800;letter-spacing:4px;font-size:11px}
@@ -27,6 +28,7 @@ nav{display:flex;justify-content:space-between;align-items:center;gap:12px;borde
 .pill{display:inline-flex;border:1px solid #786044;color:var(--gold);padding:8px 14px;border-radius:99px;font-size:10px;letter-spacing:2px;font-weight:800}
 .actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:22px}
 .primary{background:var(--gold);color:#21170d;font-weight:800;border-radius:12px;padding:13px 19px}
+.primary:disabled{opacity:.6;cursor:wait}
 .secondary{background:transparent;color:var(--cream);border:1px solid var(--line);border-radius:12px;padding:13px 19px}
 .danger{background:#4b252c;color:#ffe3df;border:1px solid #87434b;border-radius:10px;padding:10px 13px}
 .sectionhead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:32px 0 15px}
@@ -87,6 +89,9 @@ input:focus,select:focus{border-color:var(--gold)}
  .stage:before,.stage:after{width:16%}
  .person{align-items:flex-start;flex-direction:column}
  .person-actions{width:100%;justify-content:flex-start}
+ nav{align-items:flex-start}
+ nav .row{justify-content:flex-end}
+ .navbtn{padding:8px 9px;font-size:11px}
 }
 </style>
 
@@ -97,7 +102,10 @@ input:focus,select:focus{border-color:var(--gold)}
 <div class="wrap" id="home">
 
 <nav>
- <div class="brand">✦ 3SA / CLASS OF MEDICINE</div>
+ <div>
+  <div class="brand">✦ 3SA / CLASS OF MEDICINE</div>
+  <div class="top-credit">© 2026 KARINA AMORIM</div>
+ </div>
  <div class="row">
   <button class="navbtn" onclick="openAdmin()">Bastidores</button>
   <button class="navbtn" onclick="openStage()">Modo telão ↗</button>
@@ -135,12 +143,9 @@ input:focus,select:focus{border-color:var(--gold)}
    <select id="catSelect" onchange="renderOptions()"></select>
   </div>
   <div id="voteOptions"></div>
-  <div class="field">
-   <label>Código individual de votação</label>
-   <input id="voterCode" placeholder="Ex.: 3SA-AB12-CD34-EF56" autocomplete="off">
-  </div>
-  <button class="primary" onclick="submitVote()">REGISTRAR VOTO</button>
-  <p class="small">Seu código permite um voto por categoria. A votação é validada no servidor.</p>
+  <button class="primary" id="submitVoteBtn" onclick="submitVote()">REGISTRAR VOTO</button>
+  <p class="small">Votação aberta e anônima: você pode votar quantas vezes quiser.</p>
+  <p class="small">A votação só pode ser registrada enquanto a categoria estiver aberta.</p>
  </section>
 
  <section id="loginPanel" class="panel hidden">
@@ -156,7 +161,7 @@ input:focus,select:focus{border-color:var(--gold)}
 
  <section id="adminPanel" class="panel hidden">
   <div class="sectionhead" style="margin-top:0">
-   <div><h2>Painel da organização</h2><p>Gerencie participantes, categorias, códigos e cerimônia.</p></div>
+   <div><h2>Painel da organização</h2><p>Gerencie participantes, categorias, votação e cerimônia.</p></div>
    <button class="navbtn" onclick="logoutAdmin()">Sair</button>
   </div>
 
@@ -176,9 +181,6 @@ input:focus,select:focus{border-color:var(--gold)}
   <div id="adminCats" class="list"></div>
 
   <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
-  <button class="primary" onclick="generateTokens()">GERAR CÓDIGOS INDIVIDUAIS</button>
-  <div id="tokenOutput" class="notice hidden"></div>
-  <p class="small">Guarde os códigos assim que forem gerados. Por segurança, eles não serão exibidos novamente.</p>
 
   <div class="field">
    <label>Categoria para revelar</label>
@@ -230,7 +232,10 @@ async function loadPublic(){
   sb.from('participants').select('id,display_name').eq('active',true).order('display_name'),
   sb.from('categories').select('id,title,description,is_open,sort_order').order('sort_order')
  ]);
- if(p.error||c.error){console.error(p.error||c.error);return}
+ if(p.error||c.error){
+  console.error(p.error||c.error);
+  return;
+ }
  people=p.data||[];
  cats=c.data||[];
  if(!cats.length){
@@ -246,7 +251,7 @@ function render(){
    <div class="num">CATEGORY ${String(i+1).padStart(2,'0')}</div>
    <h3>${esc(c.title)}</h3>
    <p>${esc(c.description||'')}</p>
-   <span class="tag">${c.is_open?'✦ VOTAÇÃO ABERTA':'✦ THE CLASS VOTES'}</span>
+   <span class="tag">${c.is_open?'✦ VOTAÇÃO ABERTA':'✦ VOTAÇÃO FECHADA'}</span>
   </article>
  `).join('');
 
@@ -282,7 +287,10 @@ async function loginAdmin(){
   email:$('adminEmail').value.trim(),
   password:$('adminPassword').value
  });
- if(error){msg('loginMsg','Não foi possível entrar: '+error.message);return}
+ if(error){
+  msg('loginMsg','Não foi possível entrar: '+error.message);
+  return;
+ }
  closeLogin();
  await showAdmin();
 }
@@ -339,7 +347,10 @@ async function addPerson(){
  const n=$('personName').value.trim();
  if(!n)return;
  const {error}=await sb.from('participants').insert({display_name:n,active:true});
- if(error){msg('adminMsg','Erro ao adicionar: '+error.message);return}
+ if(error){
+  msg('adminMsg','Erro ao adicionar: '+error.message);
+  return;
+ }
  $('personName').value='';
  await loadAdmin();
 }
@@ -347,7 +358,10 @@ async function addPerson(){
 async function removePerson(id){
  if(!confirm('Remover este participante da lista ativa?'))return;
  const {error}=await sb.from('participants').update({active:false}).eq('id',id);
- if(error){msg('adminMsg','Erro ao remover: '+error.message);return}
+ if(error){
+  msg('adminMsg','Erro ao remover: '+error.message);
+  return;
+ }
  await loadAdmin();
 }
 
@@ -367,7 +381,10 @@ async function addCategory(){
  const {error}=await sb.from('categories').insert({
   title,description,sort_order:cats.length,is_open:false
  });
- if(error){msg('adminMsg','Erro ao criar categoria: '+error.message);return}
+ if(error){
+  msg('adminMsg','Erro ao criar categoria: '+error.message);
+  return;
+ }
  $('newCat').value='';
  $('newDesc').value='';
  await loadAdmin();
@@ -375,7 +392,10 @@ async function addCategory(){
 
 async function toggleCategory(id,open){
  const {error}=await sb.from('categories').update({is_open:!open}).eq('id',id);
- if(error){msg('adminMsg','Erro ao alterar votação: '+error.message);return}
+ if(error){
+  msg('adminMsg','Erro ao alterar votação: '+error.message);
+  return;
+ }
  await loadAdmin();
 }
 
@@ -445,7 +465,7 @@ function renderAdminCats(){
     <button class="${c.is_open?'danger':'navbtn'}" onclick="toggleCategory('${c.id}',${c.is_open})">
      ${c.is_open?'Fechar votação':'Abrir votação'}
     </button>
-    <button class="danger" onclick="deleteCategory('${c.id}','${esc(c.title).replace(/'/g,"&#39;")}')">
+    <button class="danger" onclick="deleteCategory('${c.id}',${JSON.stringify(c.title).replace(/"/g,'&quot;')})">
      Excluir
     </button>
    </div>
@@ -455,70 +475,77 @@ function renderAdminCats(){
 
 function renderOptions(){
  const cat=cats.find(c=>c.id===$('catSelect').value);
- $('voteOptions').innerHTML=cat&&!cat.is_open
-  ?'<p class="small">A votação desta categoria está fechada no momento.</p>'
-  :people.length
-   ?people.map(p=>`
-    <label class="voteopt">
-     <input type="radio" name="candidate" value="${p.id}">
-     ${esc(p.display_name)}
-    </label>
-   `).join('')
-   :'<p class="small">A organização ainda não cadastrou participantes.</p>';
+
+ $('voteOptions').innerHTML=!cat
+  ?'<p class="small">Selecione uma categoria.</p>'
+  :!cat.is_open
+   ?'<p class="small">A votação desta categoria está fechada no momento.</p>'
+   :people.length
+    ?people.map(p=>`
+     <label class="voteopt">
+      <input type="radio" name="candidate" value="${p.id}">
+      ${esc(p.display_name)}
+     </label>
+    `).join('')
+    :'<p class="small">A organização ainda não cadastrou participantes.</p>';
 }
 
 async function submitVote(){
  const category_id=$('catSelect').value;
- const token=$('voterCode').value.trim().toUpperCase();
  const chosen=document.querySelector('input[name="candidate"]:checked');
+ const button=$('submitVoteBtn');
 
- if(!token||!chosen)return alert('Informe seu código e escolha uma pessoa.');
+ if(!category_id){
+  alert('Escolha uma categoria.');
+  return;
+ }
+ if(!chosen){
+  alert('Escolha uma pessoa para votar.');
+  return;
+ }
 
- const {data,error}=await sb.functions.invoke('awards-api',{
-  body:{action:'vote',token,category_id,participant_id:chosen.value}
- });
+ button.disabled=true;
+ button.textContent='REGISTRANDO...';
 
- if(error){
-  alert('Não foi possível registrar. Verifique sua conexão e tente novamente.');
+ try{
+  const {data,error}=await sb.functions.invoke('awards-api',{
+   body:{
+    action:'vote',
+    category_id,
+    participant_id:chosen.value
+   }
+  });
+
+  if(error){
+   console.error('Erro ao registrar voto:',error);
+   let detail=error.message||'Erro desconhecido';
+
+   try{
+    if(error.context){
+     const payload=await error.context.json();
+     detail=payload.details||payload.error||detail;
+    }
+   }catch(e){}
+
+   alert('Não foi possível registrar o voto: '+detail);
+   return;
+  }
+
+  if(data?.error){
+   alert(data.details||data.error);
+   return;
+  }
+
+  alert('Voto registrado com sucesso! ✦');
+  document.querySelectorAll('input[name="candidate"]').forEach(x=>x.checked=false);
+
+ }catch(error){
   console.error(error);
-  return;
+  alert('Ocorreu um erro inesperado ao registrar o voto. Tente novamente.');
+ }finally{
+  button.disabled=false;
+  button.textContent='REGISTRAR VOTO';
  }
- if(data?.error){alert(data.error);return}
-
- alert('Voto registrado com sucesso!');
- $('voterCode').value='';
- document.querySelectorAll('input[name="candidate"]').forEach(x=>x.checked=false);
-}
-
-async function generateTokens(){
- if(!confirm('Gerar um código para cada participante ativo? Os códigos serão exibidos apenas uma vez.'))return;
- msg('adminMsg','Gerando códigos...');
-
- const {data,error}=await sb.functions.invoke('awards-api',{
-  body:{action:'generate_tokens'}
- });
-
- if(error||data?.error){
-  msg('adminMsg','Falha ao gerar códigos: '+(data?.error||error.message));
-  return;
- }
-
- const list=data.tokens||[];
- $('tokenOutput').classList.remove('hidden');
- $('tokenOutput').innerHTML=
-  '<strong>GUARDE ESTA LISTA AGORA</strong><br>'+
-  list.map(x=>`${esc(x.name)} — <code>${esc(x.token)}</code>`).join('<br>')+
-  '<br><button class="secondary" onclick="copyTokens()">COPIAR TODOS</button>';
-
- window.generatedTokens=list;
- msg('adminMsg',`${list.length} códigos gerados.`);
-}
-
-function copyTokens(){
- const t=(window.generatedTokens||[]).map(x=>x.name+' — '+x.token).join('\n');
- navigator.clipboard?.writeText(t)
-  .then(()=>alert('Códigos copiados!'))
-  .catch(()=>alert('Selecione e copie os códigos exibidos.'));
 }
 
 async function openStage(){
@@ -533,6 +560,7 @@ async function openStage(){
 
  if(error){
   alert('Não foi possível consultar os resultados.');
+  console.error(error);
   return;
  }
 
